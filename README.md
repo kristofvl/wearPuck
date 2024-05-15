@@ -3,5 +3,5 @@ Open Source Sensing Platform based on the [Espruino Puck](https://www.espruino.c
 
 The encasing is based on the [design](https://www.thingiverse.com/thing:2095572) by [MaBecker](https://www.thingiverse.com/mabecker/designs), licensed under the [Creative Commons - Public Domain Dedication license](https://creativecommons.org/publicdomain/zero/1.0/).
 
-![connection](https://github.com/kristofvl/wearPuck/blob/main/puck+BME.png?raw=true)
+![connection](https://github.com/kristofvl/wearPuck/blob/main/puckBME.png?raw=true)
 
