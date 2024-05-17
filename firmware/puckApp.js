@@ -1,5 +1,6 @@
 const debug = true;
 
+// https://www.espruino.com/BME280 
 I2C1.setup({scl:D2,sda:D1});
 var bme = require("BME280").connect(I2C1);
 
