@@ -19,13 +19,9 @@ Puck.on('accel', function(xyz) {
       NRF.updateServices({
         0xBCDE: {
           0xA000: {
-            value: new Float32Array([xyz.acc.x, xyz.acc.y, xyz.acc.z]).buffer,
+            value: new Float32Array([xyz.acc.x, xyz.acc.y, xyz.acc.z, xyz.gyro.x, xyz.gyro.y, xyz.gyro.z]).buffer,
             notify: true
           },
-          0xB000: {
-            value: new Float32Array([xyz.gyro.x, xyz.gyro.y, xyz.gyro.z]).buffer,
-            notify: true
-          }
         }
       });
       messages += 1;
@@ -43,7 +39,7 @@ function readBME() {  // kvl, read single package & output to console
   if (connected) {
       NRF.updateServices({
         0xBCDE: {
-          0xC000: {
+          0xB000: {
             value: new Float32Array([temp_act, press_act, hum_act]).buffer,
             notify: true
           },
@@ -59,7 +55,6 @@ Puck.accelOn(12.5);
 function onInit() {
   NRF.on('connect', function () {
       connected = true;
-      //Puck.ioWr(0x80,0);
       Puck.setOptions({"hrmPollInterval": 40});
       Puck.setOptions({"powerSave": false});
       Puck.setPollInterval(40);
@@ -76,23 +71,29 @@ function onInit() {
   NRF.setServices({
   0xBCDE : {
     0xA000 : {
-        description: 'Puck Acceleration',
+        description: 'Puck Acc Gyro',
         notify: true,
         readable: true,
-        value: new Float32Array([0, 0, 0]).buffer,
+        value: new Float32Array([0, 0, 0, 0, 0, 0]).buffer,
     },
     0xB000 : {
-        description: 'Puck Gyroscope',
+        description: 'Atmosphere',
         notify: true,
         readable: true,
         value: new Int32Array([0, 0, 0]).buffer,
     },
     0xC000 : {
-        description: 'ATmosphere',
+        description: 'Button',
         notify: true,
         readable: true,
-        value: new Int32Array([0, 0, 0]).buffer,
+        value: false,
     },
+    0xD000: {
+        description: 'Beacon',
+        notify: true,
+        readable: true,
+        value: new Int8Array([0]).buffer,
+    }
   }
 },{advertise:[0xBCDE], uart:true});
 }
@@ -101,3 +102,43 @@ function onInit() {
 onInit();
 
 var read_int = setInterval(readBME, 1000);  // read every 5 seconds
+
+
+var button = false;
+// Send button presses
+setWatch(function() {
+  button = !button;
+  if (connected) {
+      NRF.updateServices({
+        0xBCDE: {
+          0xC000: {
+            value: button,
+            notify: true
+          },
+        }
+      });
+      messages += 1;
+  }
+}, BTN1, { repeat:1, edge:"both", debounce: 20 });
+
+
+function readBeacon() {
+  if (!connected) return;
+  NRF.findDevices(function(devs) {
+    devs.foreach(function(dev) {
+      if (dev.manufaturer == 0x590) {
+        NRF.updateServices({
+          0xBCDE: {
+            0xD000: {
+              value: dev.rssi,
+              notify: true
+            },
+          }
+        });
+        messages += 1;
+      }
+    });
+  }, 2000);
+}
+
+var read_ble = setInterval(readBeacon, 5000);
