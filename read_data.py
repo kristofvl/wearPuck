@@ -18,20 +18,14 @@ import sys
 sys.setrecursionlimit(10000)
 
 name = str(uuid.uuid4())
-conn = sqlite3.connect('sensors.db')
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS bangle_gyro
-             (name TEXT, position TEXT, receive_time TEXT, ax FLOAT, ay FLOAT, az FLOAT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS bangle_accel
-             (name TEXT, position TEXT, receive_time TEXT, ax FLOAT, ay FLOAT, az FLOAT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS bangle_bme
-             (name TEXT, position TEXT, receive_time TEXT, dx INTEGER, dy INTEGER, dz INTEGER)''')
-
 with open("imu.csv", "w") as f:
-    f.write("timestamp,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z\n")
+    f.write("timestamp_rec,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,message\n")
 
 with open("bme.csv", "w") as f:
-    f.write("timestamp,temp,press,humid\n")
+    f.write("timestamp_rec,temp,press,humid,message\n")
+
+with open("timestamps.csv", "w") as f:
+    f.write("timestamp_rec,message,timestamp\n")
 
 
 class DataCollector:
@@ -55,9 +49,11 @@ class DataCollector:
         gyro_raw_x = np.frombuffer(data[12:16], dtype=np.float32, count=1)[0]
         gyro_raw_y = np.frombuffer(data[16:20], dtype=np.float32, count=1)[0]
         gyro_raw_z = np.frombuffer(data[20:24], dtype=np.float32, count=1)[0]
+        
+        message = int(np.round(np.frombuffer(data[24:28], dtype=np.float32, count=1)[0]))
 
         with open("imu.csv", "a") as f:
-            f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z}\n")
+            f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z},{message}\n")
 
 
     def bme_handler1(self, sender, data):
@@ -65,8 +61,19 @@ class DataCollector:
         mag_raw_x = np.frombuffer(data[:4], dtype=np.float32, count=1)[0]
         mag_raw_y = np.frombuffer(data[4:8], dtype=np.float32, count=1)[0]
         mag_raw_z = np.frombuffer(data[8:12], dtype=np.float32, count=1)[0]
+        print(mag_raw_x, mag_raw_y)
+        message = int(np.round(np.frombuffer(data[12:16], dtype=np.float32, count=1)[0]))
         with open("bme.csv", "a") as f:
-            f.write(f"{str(receive_time)},{mag_raw_x},{mag_raw_y},{mag_raw_z}\n")
+            f.write(f"{str(receive_time)},{mag_raw_x},{mag_raw_y},{mag_raw_z},{message}\n")
+
+
+    def timestamp_handler(self, sender, data):
+        receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        message = int(np.frombuffer(data[:8], dtype=np.float64, count=1)[0])
+        timestamp = int(np.frombuffer(data[8:16], dtype=np.float64, count=1)[0])
+        with open("timestamps.csv", "a") as f:
+            f.write(f"{str(receive_time)},{message},{timestamp}\n")
+        
 
     def button_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -100,6 +107,8 @@ class DataCollector:
         await self.client1.start_notify("0000a000-0000-1000-8000-00805f9b34fb", self.imu_handler1)
         await self.client1.start_notify("0000b000-0000-1000-8000-00805f9b34fb", self.bme_handler1)
         await self.client1.start_notify("0000c000-0000-1000-8000-00805f9b34fb", self.button_handler)
+        await self.client1.start_notify("0000d000-0000-1000-8000-00805f9b34fb", lambda x,y: None)
+        await self.client1.start_notify("0000e000-0000-1000-8000-00805f9b34fb", self.timestamp_handler)
         print("CONNECTED")
         self.client1_connected = True
 
