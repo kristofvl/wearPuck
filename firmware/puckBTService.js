@@ -13,20 +13,33 @@ var position = "RHR";
 var position_code = 0;
 
 
-
 Puck.on('accel', function(xyz) {
   if (connected) {
-      NRF.updateServices({
-        0xBCDE: {
-          0xA000: {
-            value: new Float32Array([xyz.acc.x, xyz.acc.y, xyz.acc.z, xyz.gyro.x, xyz.gyro.y, xyz.gyro.z]).buffer,
-            notify: true
-          },
-        }
-      });
-      messages += 1;
+    NRF.updateServices({
+      0xBCDE: {
+        0xA000: {
+          value: new Float32Array([xyz.acc.x, xyz.acc.y, xyz.acc.z, xyz.gyro.x, xyz.gyro.y, xyz.gyro.z, messages]).buffer,
+          notify: true
+        },
+      }
+    });
+    updateTimestamp();
   }
 });
+
+function updateTimestamp() {
+  if (connected) {
+    NRF.updateServices({
+      0xBCDE: {
+        0xE000: {
+          value: new Float64Array([messages, Date.now()]).buffer,
+          notify: true
+        },
+      }
+    });
+    messages += 1;
+  } 
+}
 
 function readBME() {  // kvl, read single package & output to console
   bme.readRawData();
@@ -37,15 +50,15 @@ function readBME() {  // kvl, read single package & output to console
   var press_act = press_cal / 100.0;
   var hum_act = hum_cal / 1024.0;
   if (connected) {
-      NRF.updateServices({
-        0xBCDE: {
-          0xB000: {
-            value: new Float32Array([temp_act, press_act, hum_act]).buffer,
-            notify: true
-          },
-        }
-      });
-      messages += 1;
+    NRF.updateServices({
+      0xBCDE: {
+        0xB000: {
+          value: new Float32Array([temp_act, press_act, hum_act, messages]).buffer,
+          notify: true
+        },
+      }
+    });
+    updateTimestamp();
   }
 }
 
@@ -74,27 +87,33 @@ function onInit() {
         description: 'Puck Acc Gyro',
         notify: true,
         readable: true,
-        value: new Float32Array([0, 0, 0, 0, 0, 0]).buffer,
+        value: new Float32Array([0, 0, 0, 0, 0, 0, 0]).buffer,
     },
     0xB000 : {
         description: 'Atmosphere',
         notify: true,
         readable: true,
-        value: new Int32Array([0, 0, 0]).buffer,
+        value: new Float32Array([0, 0, 0, 0]).buffer,
     },
     0xC000 : {
         description: 'Button',
         notify: true,
         readable: true,
-        value: false,
+        value: new Int32Array([0, 0]).buffer,
     },
     0xD000: {
         description: 'Beacon',
         notify: true,
         readable: true,
-        value: new Int8Array([0]).buffer,
-    }
-  }
+        value: new Int32Array([0, 0]).buffer,
+    },
+    0xE000: {
+      description: "timestamps",
+      notify: true,
+      readable : true,
+      value: new Float64Array([0, 0]).buffer,
+    },
+  },
 },{advertise:[0xBCDE], uart:true});
 }
 
@@ -109,15 +128,15 @@ var button = false;
 setWatch(function() {
   button = !button;
   if (connected) {
-      NRF.updateServices({
-        0xBCDE: {
-          0xC000: {
-            value: button,
-            notify: true
-          },
-        }
-      });
-      messages += 1;
+    NRF.updateServices({
+      0xBCDE: {
+        0xC000: {
+          value: new Int32Array([button, messages]).buffer,
+          notify: true
+        },
+      }
+    });
+    updateTimestamp();
   }
 }, BTN1, { repeat:1, edge:"both", debounce: 20 });
 
@@ -130,12 +149,12 @@ function readBeacon() {
         NRF.updateServices({
           0xBCDE: {
             0xD000: {
-              value: dev.rssi,
+              value: new Int32Array([dev.rssi, messages]).buffer,
               notify: true
             },
           }
         });
-        messages += 1;
+        updateTimestamp();
       }
     });
   }, 2000);
