@@ -68,18 +68,9 @@ Puck.accelOn(12.5);
 function onInit() {
   NRF.on('connect', function () {
       connected = true;
-      Puck.setOptions({"hrmPollInterval": 40});
-      Puck.setOptions({"powerSave": false});
-      Puck.setPollInterval(40);
-      Puck.setHRMPower(true, "spirit");
-      Puck.setCompassPower(true, "spirit");
-
   });
   NRF.on('disconnect', function () {
       connected = false;
-      Puck.setHRMPower(false, "spirit");
-      Puck.setCompassPower(false, "spirit");
-
   });
   NRF.setServices({
   0xBCDE : {
