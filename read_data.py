@@ -74,7 +74,6 @@ class DataCollector:
         mag_raw_x = np.frombuffer(data[:4], dtype=np.float32, count=1)[0]
         mag_raw_y = np.frombuffer(data[4:8], dtype=np.float32, count=1)[0]
         mag_raw_z = np.frombuffer(data[8:12], dtype=np.float32, count=1)[0]
-        print(mag_raw_x, mag_raw_y)
         message = int(np.round(np.frombuffer(data[12:16], dtype=np.float32, count=1)[0]))
         with open(run_dir + "bme.csv", "a") as f:
             f.write(f"{str(receive_time)},{mag_raw_x},{mag_raw_y},{mag_raw_z},{message}\n")
