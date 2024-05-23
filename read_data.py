@@ -3,12 +3,12 @@ import nest_asyncio
 import time
 import pickle
 import uuid
-import sqlite3
 import struct
 import numpy as np
 from functools import partial
 nest_asyncio.apply()
 from datetime import datetime
+import os
 
 from loguru import logger
 import bleak
@@ -17,15 +17,30 @@ from bleak.exc import BleakError
 import sys
 sys.setrecursionlimit(10000)
 
+rec_dir = "recs/"
+
 name = str(uuid.uuid4())
-with open("imu.csv", "w") as f:
+
+run_name = datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + "_" + name
+
+run_dir = rec_dir + run_name + "/"
+
+os.makedirs(run_dir)
+
+with open(run_dir + "imu.csv", "w") as f:
     f.write("timestamp_rec,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,message\n")
 
-with open("bme.csv", "w") as f:
+with open(run_dir + "bme.csv", "w") as f:
     f.write("timestamp_rec,temp,press,humid,message\n")
 
-with open("timestamps.csv", "w") as f:
+with open(run_dir + "timestamps.csv", "w") as f:
     f.write("timestamp_rec,message,timestamp\n")
+
+with open(run_dir + "button.csv", "w") as f:
+    f.write("timestamp_rec,value,message\n")
+
+with open(run_dir + "beacon.csv", "w") as f:
+    f.write("timestamp_rec,beacon,message\n")
 
 
 class DataCollector:
@@ -40,8 +55,6 @@ class DataCollector:
 
     def imu_handler1(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        conn = sqlite3.connect('sensors.db')
-        c = conn.cursor()
 
         accel_raw_x = np.frombuffer(data[:4], dtype=np.float32, count=1)[0]
         accel_raw_y = np.frombuffer(data[4:8], dtype=np.float32, count=1)[0]
@@ -52,7 +65,7 @@ class DataCollector:
         
         message = int(np.round(np.frombuffer(data[24:28], dtype=np.float32, count=1)[0]))
 
-        with open("imu.csv", "a") as f:
+        with open(run_dir + "imu.csv", "a") as f:
             f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z},{message}\n")
 
 
@@ -63,7 +76,7 @@ class DataCollector:
         mag_raw_z = np.frombuffer(data[8:12], dtype=np.float32, count=1)[0]
         print(mag_raw_x, mag_raw_y)
         message = int(np.round(np.frombuffer(data[12:16], dtype=np.float32, count=1)[0]))
-        with open("bme.csv", "a") as f:
+        with open(run_dir + "bme.csv", "a") as f:
             f.write(f"{str(receive_time)},{mag_raw_x},{mag_raw_y},{mag_raw_z},{message}\n")
 
 
@@ -71,14 +84,23 @@ class DataCollector:
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         message = int(np.frombuffer(data[:8], dtype=np.float64, count=1)[0])
         timestamp = int(np.frombuffer(data[8:16], dtype=np.float64, count=1)[0])
-        with open("timestamps.csv", "a") as f:
+        with open(run_dir + "timestamps.csv", "a") as f:
             f.write(f"{str(receive_time)},{message},{timestamp}\n")
         
 
     def button_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        button = np.frombuffer(data[:1], dtype=bool, count=1)[0]
-        print("button", button)
+        button = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
+        message = int(np.frombuffer(data[4:8], dtype=np.int32, count=1)[0])
+        with open(run_dir + "button.csv", "w") as f:
+            f.write(f"{str(receive_time)},{button},{message}\n")
+
+    def beacon_handler(self, sender, data):
+        receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        beacon = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
+        message = int(np.frombuffer(data[4:8], dtype=np.int32, count=1)[0])
+        with open(run_dir + "beacon.csv", "w") as f:
+            f.write(f"{str(receive_time)},{beacon},{message}\n")
 
 
     async def connect(self, address):
@@ -107,7 +129,7 @@ class DataCollector:
         await self.client1.start_notify("0000a000-0000-1000-8000-00805f9b34fb", self.imu_handler1)
         await self.client1.start_notify("0000b000-0000-1000-8000-00805f9b34fb", self.bme_handler1)
         await self.client1.start_notify("0000c000-0000-1000-8000-00805f9b34fb", self.button_handler)
-        await self.client1.start_notify("0000d000-0000-1000-8000-00805f9b34fb", lambda x,y: None)
+        await self.client1.start_notify("0000d000-0000-1000-8000-00805f9b34fb", self.beacon_handler)
         await self.client1.start_notify("0000e000-0000-1000-8000-00805f9b34fb", self.timestamp_handler)
         print("CONNECTED")
         self.client1_connected = True
