@@ -91,14 +91,14 @@ class DataCollector:
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         button = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
         message = int(np.frombuffer(data[4:8], dtype=np.int32, count=1)[0])
-        with open(run_dir + "button.csv", "w") as f:
+        with open(run_dir + "button.csv", "a") as f:
             f.write(f"{str(receive_time)},{button},{message}\n")
 
     def beacon_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         beacon = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
         message = int(np.frombuffer(data[4:8], dtype=np.int32, count=1)[0])
-        with open(run_dir + "beacon.csv", "w") as f:
+        with open(run_dir + "beacon.csv", "a") as f:
             f.write(f"{str(receive_time)},{beacon},{message}\n")
 
 
