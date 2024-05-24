@@ -6,19 +6,31 @@ var bme = require("BME280").connect(I2C1);
 
 
 var connected = false;
-var batteryInterval = false;
 var messages = 0;
-var ang = 0;
-var position = "RHR";
-var position_code = 0;
+
+function mSplit(num) {
+
+    // Get the lower 16 bits
+    const lower16Bits = num & 0xFFFF;
+
+    // Get the upper 16 bits by shifting right 16 bits
+    const upper16Bits = (num >>> 16) & 0xFFFF;
+
+    return {
+        up: upper16Bits,
+        low: lower16Bits
+    };
+}
+
 
 
 Puck.on('accel', function(xyz) {
   if (connected) {
+    mRet = mSplit(messages);
     NRF.updateServices({
       0xBCDE: {
         0xA000: {
-          value: new Float32Array([xyz.acc.x, xyz.acc.y, xyz.acc.z, xyz.gyro.x, xyz.gyro.y, xyz.gyro.z, messages]).buffer,
+          value: new Int16Array([xyz.acc.x, xyz.acc.y, xyz.acc.z, xyz.gyro.x, xyz.gyro.y, xyz.gyro.z, mRet.up, mRet.low]).buffer,
           notify: true
         },
       }
@@ -46,14 +58,12 @@ function readBME() {  // kvl, read single package & output to console
   var temp_cal = bme.calibration_T(bme.temp_raw);
   var press_cal = bme.calibration_P(bme.pres_raw);
   var hum_cal = bme.calibration_H(bme.hum_raw);
-  var temp_act = temp_cal / 100.0;
-  var press_act = press_cal / 100.0;
-  var hum_act = hum_cal / 1024.0;
   if (connected) {
+    mRet = mSplit(messages);
     NRF.updateServices({
       0xBCDE: {
         0xB000: {
-          value: new Float32Array([temp_act, press_act, hum_act, messages]).buffer,
+          value: new Int16Array([temp_cal, press_cal, hum_cal, mRet.up, mRet.low]).buffer,
           notify: true
         },
       }
@@ -63,7 +73,7 @@ function readBME() {  // kvl, read single package & output to console
 }
 
 
-Puck.accelOn(12.5);
+Puck.accelOn(52);
 
 function onInit() {
   NRF.on('connect', function () {
@@ -78,13 +88,13 @@ function onInit() {
         description: 'Puck Acc Gyro',
         notify: true,
         readable: true,
-        value: new Float32Array([0, 0, 0, 0, 0, 0, 0]).buffer,
+        value: new Int16Array([0, 0, 0, 0, 0, 0, 0, 0]).buffer,
     },
     0xB000 : {
         description: 'Atmosphere',
         notify: true,
         readable: true,
-        value: new Float32Array([0, 0, 0, 0]).buffer,
+        value: new Int16Array([0, 0, 0, 0, 0]).buffer,
     },
     0xC000 : {
         description: 'Button',
@@ -96,7 +106,7 @@ function onInit() {
         description: 'Beacon',
         notify: true,
         readable: true,
-        value: new Int32Array([0, 0]).buffer,
+        value: new Int16Array([0, 0, 0]).buffer,
     },
     0xE000: {
       description: "timestamps",
@@ -135,19 +145,20 @@ setWatch(function() {
 function readBeacon() {
   if (!connected) return;
   NRF.findDevices(function(devs) {
-    devs.foreach(function(dev) {
+    /*devs.foreach(function(dev) { // not working yet, need a different loop type
       if (dev.manufaturer == 0x590) {
+        mRet = mSplit(messages);
         NRF.updateServices({
           0xBCDE: {
             0xD000: {
-              value: new Int32Array([dev.rssi, messages]).buffer,
+              value: new Int16Array([dev.rssi, mRet.up, mRet.low]).buffer,
               notify: true
             },
           }
         });
         updateTimestamp();
       }
-    });
+    });*/
   }, 2000);
 }
 
