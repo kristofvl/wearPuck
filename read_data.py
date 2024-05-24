@@ -56,27 +56,34 @@ class DataCollector:
     def imu_handler1(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-        accel_raw_x = np.frombuffer(data[:4], dtype=np.float32, count=1)[0]
-        accel_raw_y = np.frombuffer(data[4:8], dtype=np.float32, count=1)[0]
-        accel_raw_z = np.frombuffer(data[8:12], dtype=np.float32, count=1)[0]
-        gyro_raw_x = np.frombuffer(data[12:16], dtype=np.float32, count=1)[0]
-        gyro_raw_y = np.frombuffer(data[16:20], dtype=np.float32, count=1)[0]
-        gyro_raw_z = np.frombuffer(data[20:24], dtype=np.float32, count=1)[0]
-        
-        message = int(np.round(np.frombuffer(data[24:28], dtype=np.float32, count=1)[0]))
-
+        accel_raw_x = np.frombuffer(data[:2], dtype=np.int16, count=1)[0]
+        accel_raw_y = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
+        accel_raw_z = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
+        gyro_raw_x = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
+        gyro_raw_y = np.frombuffer(data[8:10], dtype=np.int16, count=1)[0]
+        gyro_raw_z = np.frombuffer(data[10:12], dtype=np.int16, count=1)[0]
+        mup = np.frombuffer(data[12:14], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[14:16], dtype=np.int16, count=1)[0]
+        message = mup * (2 ** 16)
         with open(run_dir + "imu.csv", "a") as f:
             f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z},{message}\n")
 
 
     def bme_handler1(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        mag_raw_x = np.frombuffer(data[:4], dtype=np.float32, count=1)[0]
-        mag_raw_y = np.frombuffer(data[4:8], dtype=np.float32, count=1)[0]
-        mag_raw_z = np.frombuffer(data[8:12], dtype=np.float32, count=1)[0]
-        message = int(np.round(np.frombuffer(data[12:16], dtype=np.float32, count=1)[0]))
+        temp_cal = np.frombuffer(data[:2], dtype=np.int16, count=1)[0]
+        press_cal = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
+        hum_cal = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
+        temp_act = temp_cal / 100.0;
+        press_act = press_cal / 100.0;
+        hum_act = hum_cal / 1024.0;
+
+        mup = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[8:10], dtype=np.int16, count=1)[0]
+        message = mup * (2 ** 16)
+
         with open(run_dir + "bme.csv", "a") as f:
-            f.write(f"{str(receive_time)},{mag_raw_x},{mag_raw_y},{mag_raw_z},{message}\n")
+            f.write(f"{str(receive_time)},{temp_act},{press_act},{hum_act},{message}\n")
 
 
     def timestamp_handler(self, sender, data):
@@ -89,15 +96,19 @@ class DataCollector:
 
     def button_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        button = np.frombuffer(data[:4], dtype=np.int32, count=1)[0]
+        button = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
         message = int(np.frombuffer(data[4:8], dtype=np.int32, count=1)[0])
+
         with open(run_dir + "button.csv", "a") as f:
             f.write(f"{str(receive_time)},{button},{message}\n")
 
     def beacon_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        beacon = np.frombuffer(data[:4], dtype=np.int32, count=1)[0]
-        message = int(np.frombuffer(data[4:8], dtype=np.int32, count=1)[0])
+        beacon = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
+        mup = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
+        message = mup * (2 ** 16)
+
         with open(run_dir + "beacon.csv", "a") as f:
             f.write(f"{str(receive_time)},{beacon},{message}\n")
 
@@ -162,7 +173,6 @@ try:
     loop.run_until_complete(dc.run(["CD:D7:16:C8:74:5F"]))
 except KeyboardInterrupt:
     loop.run_until_complete(dc.disc())
-    conn.close()
 
 scanner = bleak.BleakScanner()
 devices = loop.run_until_complete(scanner.discover(return_adv=True))
