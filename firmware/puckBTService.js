@@ -7,6 +7,7 @@ var bme = require("BME280").connect(I2C1);
 
 var connected = false;
 var messages = 0;
+var done = false;  // Shine a red light if the humidity sensor was successfully detected, push the button once to turn it off
 
 function mSplit(num) {
 
@@ -58,6 +59,9 @@ function readBME() {  // kvl, read single package & output to console
   var temp_cal = bme.calibration_T(bme.temp_raw);
   var press_cal = bme.calibration_P(bme.pres_raw);
   var hum_cal = bme.calibration_H(bme.hum_raw);
+  if (hum_cal != 0.0 && !done) {
+    digitalWrite(LED1,1);
+  }
   if (connected) {
     mRet = mSplit(messages);
     NRF.updateServices({
@@ -134,6 +138,8 @@ var button = false;
 // Send button presses
 setWatch(function() {
   button = !button;
+  digitalWrite(LED1,0);
+  done = true;
   if (connected) {
     NRF.updateServices({
       0xBCDE: {
@@ -150,22 +156,26 @@ setWatch(function() {
 
 function readBeacon() {
   if (!connected) return;
+  var rssi = 0;
   NRF.findDevices(function(devs) {
-    /*devs.foreach(function(dev) { // not working yet, need a different loop type
-      if (dev.manufaturer == 0x590) {
-        mRet = mSplit(messages);
-        NRF.updateServices({
-          0xBCDE: {
-            0xD000: {
-              value: new Int16Array([dev.rssi, mRet.up, mRet.low]).buffer,
-              notify: true
-            },
-          }
-        });
-        updateTimestamp();
+    for (var ind in devs) { // not working yet, need a different loop type
+      var dev = devs[ind];
+      if (dev.manufacturer == 0x0590 && dev.manufacturerData == 0x69) {
+        rssi = dev.rssi;
       }
-    });*/
-  }, 2000);
+    }
+    mRet = mSplit(messages);
+    NRF.updateServices({
+      0xBCDE: {
+        0xD000: {
+          value: new Int16Array([rssi, mRet.up, mRet.low]).buffer,
+          notify: true
+        },
+      }
+    });
+    updateTimestamp();
+    console.log(rssi);
+  }, 1000);
 }
 
 function readCap() {
@@ -185,4 +195,4 @@ function readCap() {
 
 var read_cap = setInterval(readCap, 1000);
 
-var read_ble = setInterval(readBeacon, 5000);
+var read_ble = setInterval(readBeacon, 2000);
