@@ -114,6 +114,12 @@ function onInit() {
       readable : true,
       value: new Float64Array([0, 0]).buffer,
     },
+    0xF000: {
+      description: "capacitive",
+      notify: true,
+      readable : true,
+      value: new Int32Array([0, 0]).buffer,
+    },
   },
 },{advertise:[0xBCDE], uart:true});
 }
@@ -161,5 +167,22 @@ function readBeacon() {
     });*/
   }, 2000);
 }
+
+function readCap() {
+  if (!connected) return;
+  var cap_val = Puck.capSense();
+  mRet = mSplit(messages);
+  NRF.updateServices({
+    0xBCDE: {
+      0xF000: {
+        value: new Int32Array([cap_val, messages]).buffer,
+        notify: true
+      },
+    }
+  });
+  updateTimestamp();
+}
+
+var read_cap = setInterval(readCap, 1000);
 
 var read_ble = setInterval(readBeacon, 5000);
