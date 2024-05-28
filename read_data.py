@@ -37,10 +37,13 @@ with open(run_dir + "timestamps.csv", "w") as f:
     f.write("timestamp_rec,message,timestamp\n")
 
 with open(run_dir + "button.csv", "w") as f:
-    f.write("timestamp_rec,value,message\n")
+    f.write("timestamp_rec,button,message\n")
 
 with open(run_dir + "beacon.csv", "w") as f:
     f.write("timestamp_rec,beacon,message\n")
+
+with open(run_dir + "capacitive.csv", "w") as f:
+    f.write("timestamp_rec,cap,message\n")
 
 
 class DataCollector:
@@ -64,7 +67,7 @@ class DataCollector:
         gyro_raw_z = np.frombuffer(data[10:12], dtype=np.int16, count=1)[0]
         mup = np.frombuffer(data[12:14], dtype=np.int16, count=1)[0]
         mlow = np.frombuffer(data[14:16], dtype=np.int16, count=1)[0]
-        message = mup * (2 ** 16)
+        message = mup * (2 ** 16) + mlow
         with open(run_dir + "imu.csv", "a") as f:
             f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z},{message}\n")
 
@@ -80,7 +83,7 @@ class DataCollector:
 
         mup = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
         mlow = np.frombuffer(data[8:10], dtype=np.int16, count=1)[0]
-        message = mup * (2 ** 16)
+        message = mup * (2 ** 16) + mlow
 
         with open(run_dir + "bme.csv", "a") as f:
             f.write(f"{str(receive_time)},{temp_act},{press_act},{hum_act},{message}\n")
@@ -104,13 +107,22 @@ class DataCollector:
 
     def beacon_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        beacon = bool(np.frombuffer(data[:4], dtype=np.int32, count=1)[0])
-        mup = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
-        mlow = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
-        message = mup * (2 ** 16)
-
+        beacon = np.frombuffer(data[:2], dtype=np.int16, count=1)[0]
+        print("beacon:", beacon)
+        mup = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
+        message = mup * (2 ** 16) + mlow
+ 
         with open(run_dir + "beacon.csv", "a") as f:
             f.write(f"{str(receive_time)},{beacon},{message}\n")
+
+    def cap_handler(self, sender, data):
+        receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        cap_val = np.frombuffer(data[:4], dtype=np.int32, count=1)[0]
+        message = np.frombuffer(data[4:8], dtype=np.int32, count=1)[0]
+        with open(run_dir + "capacitive.csv", "a") as f:
+            f.write(f"{str(receive_time)},{cap_val},{message}\n")
+        
 
 
     async def connect(self, address):
@@ -141,6 +153,7 @@ class DataCollector:
         await self.client1.start_notify("0000c000-0000-1000-8000-00805f9b34fb", self.button_handler)
         await self.client1.start_notify("0000d000-0000-1000-8000-00805f9b34fb", self.beacon_handler)
         await self.client1.start_notify("0000e000-0000-1000-8000-00805f9b34fb", self.timestamp_handler)
+        await self.client1.start_notify("0000f000-0000-1000-8000-00805f9b34fb", self.cap_handler)
         print("CONNECTED")
         self.client1_connected = True
 
@@ -167,6 +180,13 @@ loop = asyncio.get_event_loop()
 dc = DataCollector()
 
 
+if False:  # enable this to scan devices and find out our device id:
+    scanner = bleak.BleakScanner()
+    devices = loop.run_until_complete(scanner.discover(return_adv=True))
+    for mac, dev in devices.items():
+        if dev[0].name is not None and dev[0].name[:4] == "Puck":
+            print(dev[0].name, mac)
+    sys.exit(0)
 
 
 try:
@@ -174,6 +194,7 @@ try:
 except KeyboardInterrupt:
     loop.run_until_complete(dc.disc())
 
-scanner = bleak.BleakScanner()
-devices = loop.run_until_complete(scanner.discover(return_adv=True))
-print(devices)
+
+# dc26 EE:71:C4:1C:DC:26
+# 745f CD:D7:16:C8:74:5F
+
