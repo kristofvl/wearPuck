@@ -19,6 +19,8 @@ sys.setrecursionlimit(10000)
 
 rec_dir = "recs/"
 
+counter = 0
+
 name = str(uuid.uuid4())
 
 run_name = datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + "_" + name
@@ -45,7 +47,6 @@ with open(run_dir + "beacon.csv", "w") as f:
 with open(run_dir + "capacitive.csv", "w") as f:
     f.write("timestamp_rec,cap,message\n")
 
-
 class DataCollector:
 
     def __init__(self):
@@ -66,7 +67,7 @@ class DataCollector:
         gyro_raw_y = np.frombuffer(data[8:10], dtype=np.int16, count=1)[0]
         gyro_raw_z = np.frombuffer(data[10:12], dtype=np.int16, count=1)[0]
         mup = np.frombuffer(data[12:14], dtype=np.int16, count=1)[0]
-        mlow = np.frombuffer(data[14:16], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[14:16], dtype=np.uint16, count=1)[0]
         message = mup * (2 ** 16) + mlow
         with open(run_dir + "imu.csv", "a") as f:
             f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z},{message}\n")
@@ -77,12 +78,13 @@ class DataCollector:
         temp_cal = np.frombuffer(data[:2], dtype=np.int16, count=1)[0]
         press_cal = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
         hum_cal = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
-        temp_act = temp_cal / 100.0;
-        press_act = press_cal / 100.0;
-        hum_act = hum_cal / 1024.0;
+        temp_act = temp_cal;
+        press_act = press_cal;
+        hum_act = hum_cal;
+        self.last_hum = hum_act
 
         mup = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
-        mlow = np.frombuffer(data[8:10], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[8:10], dtype=np.uint16, count=1)[0]
         message = mup * (2 ** 16) + mlow
 
         with open(run_dir + "bme.csv", "a") as f:
@@ -108,9 +110,9 @@ class DataCollector:
     def beacon_handler(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         beacon = np.frombuffer(data[:2], dtype=np.int16, count=1)[0]
-        print("beacon:", beacon)
+        print("beacon:", beacon, "hum", self.last_hum)
         mup = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
-        mlow = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
+        mlow = np.frombuffer(data[4:6], dtype=np.uint16, count=1)[0]
         message = mup * (2 ** 16) + mlow
  
         with open(run_dir + "beacon.csv", "a") as f:
@@ -190,7 +192,7 @@ if False:  # enable this to scan devices and find out our device id:
 
 
 try:
-    loop.run_until_complete(dc.run(["CD:D7:16:C8:74:5F"]))
+    loop.run_until_complete(dc.run(["EE:71:C4:1C:DC:26"]))
 except KeyboardInterrupt:
     loop.run_until_complete(dc.disc())
 
