@@ -7,3 +7,16 @@ The encasing is based on the [design](https://www.thingiverse.com/thing:2095572)
 
 ![connection](https://github.com/kristofvl/wearPuck/blob/main/puckBME.png?raw=true)
 
+
+# iWoar submission:
+
+We evaluated the device described in this repository and submitted a paper to [iWoar 2024](https://iwoar.org/2024/). 
+
+The steps needed to reproduce the results are given below.
+
+1. Clone this repository
+2. Change folder to "iWoar"
+3. Run `python experiments.py`
+4. ???
+5. Profit. (The results are generated in the folder) 
+
