@@ -75,17 +75,15 @@ class DataCollector:
 
     def bme_handler1(self, sender, data):
         receive_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        temp_cal = np.frombuffer(data[:2], dtype=np.int16, count=1)[0]
-        press_cal = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
-        hum_cal = np.frombuffer(data[4:6], dtype=np.int16, count=1)[0]
+        temp_cal = np.frombuffer(data[:4], dtype=np.int32, count=1)[0] / 100
+        press_cal = np.frombuffer(data[4:8], dtype=np.int32, count=1)[0] / 100
+        hum_cal = np.frombuffer(data[8:12], dtype=np.int32, count=1)[0] / 1024
         temp_act = temp_cal;
         press_act = press_cal;
         hum_act = hum_cal;
         self.last_hum = hum_act
 
-        mup = np.frombuffer(data[6:8], dtype=np.int16, count=1)[0]
-        mlow = np.frombuffer(data[8:10], dtype=np.uint16, count=1)[0]
-        message = mup * (2 ** 16) + mlow
+        message = np.frombuffer(data[12:16], dtype=np.int32, count=1)[0]
 
         with open(run_dir + "bme.csv", "a") as f:
             f.write(f"{str(receive_time)},{temp_act},{press_act},{hum_act},{message}\n")
@@ -199,4 +197,4 @@ except KeyboardInterrupt:
 
 # dc26 EE:71:C4:1C:DC:26
 # 745f CD:D7:16:C8:74:5F
-
+# 1afd D7:DA:1E:17:1A:FD
