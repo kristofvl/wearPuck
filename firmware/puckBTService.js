@@ -62,12 +62,17 @@ function readBME() {  // kvl, read single package & output to console
   if (hum_cal != 0.0 && !done) {
     digitalWrite(LED1,1);
   }
+  if (hum_cal == 81031) {
+    console.log("had to restart");
+    bme = require("BME280").connect(I2C1);
+  }
+  console.log(hum_cal);
   if (connected) {
     mRet = mSplit(messages);
     NRF.updateServices({
       0xBCDE: {
         0xB000: {
-          value: new Int16Array([temp_cal, press_cal, hum_cal, mRet.up, mRet.low]).buffer,
+          value: new Int32Array([temp_cal, press_cal, hum_cal, messages]).buffer,
           notify: true
         },
       }
@@ -98,7 +103,7 @@ function onInit() {
         description: 'Atmosphere',
         notify: true,
         readable: true,
-        value: new Int16Array([0, 0, 0, 0, 0]).buffer,
+        value: new Int32Array([0, 0, 0, 0]).buffer,
     },
     0xC000 : {
         description: 'Button',
