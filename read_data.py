@@ -68,7 +68,7 @@ class DataCollector:
         gyro_raw_z = np.frombuffer(data[10:12], dtype=np.int16, count=1)[0]
         mup = np.frombuffer(data[12:14], dtype=np.int16, count=1)[0]
         mlow = np.frombuffer(data[14:16], dtype=np.uint16, count=1)[0]
-        message = mup * (2 ** 16) + mlow
+        message = int(mup) * (2 ** 16) + mlow
         with open(run_dir + "imu.csv", "a") as f:
             f.write(f"{str(receive_time)},{accel_raw_x},{accel_raw_y},{accel_raw_z},{gyro_raw_x},{gyro_raw_y},{gyro_raw_z},{message}\n")
 
@@ -111,7 +111,7 @@ class DataCollector:
         print("beacon:", beacon, "hum", self.last_hum)
         mup = np.frombuffer(data[2:4], dtype=np.int16, count=1)[0]
         mlow = np.frombuffer(data[4:6], dtype=np.uint16, count=1)[0]
-        message = mup * (2 ** 16) + mlow
+        message = int(mup) * (2 ** 16) + mlow
  
         with open(run_dir + "beacon.csv", "a") as f:
             f.write(f"{str(receive_time)},{beacon},{message}\n")
